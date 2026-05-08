@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { insertCase, updateEmbedding } from "../db/index.js";
+import { embed } from "../embeddings/index.js";
 
 export function registerPushCase(server: McpServer) {
   server.tool(
@@ -18,16 +20,39 @@ export function registerPushCase(server: McpServer) {
       tools: z.array(z.string()).describe("Languages, frameworks, versions involved"),
       tags: z.array(z.string()).describe("Keywords for browsing"),
       source_tool: z.string().describe("Which AI tool generated this case"),
-      contributed_by: z.string().optional().default(null as unknown as string),
+      contributed_by: z.string().optional(),
       visibility: z.enum(["private", "team", "public"]).optional().default("private"),
     },
     async (params) => {
-      // TODO: store case, generate embedding, return ID
+      const saved = insertCase({
+        ...params,
+        contributed_by: params.contributed_by ?? null,
+        code_snippet: params.code_snippet ?? null,
+      });
+
+      // Generate embedding asynchronously from case text
+      const textForEmbedding = [
+        saved.title,
+        saved.situation,
+        saved.friction,
+        saved.insight,
+        saved.solution,
+        ...saved.attempts,
+        ...saved.watchouts,
+      ].join("\n");
+
+      try {
+        const vector = await embed(textForEmbedding);
+        updateEmbedding(saved.id, vector);
+      } catch (e) {
+        // Embedding failure is non-fatal — case is still stored
+      }
+
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify({ message: "push_case not yet implemented", title: params.title }),
+            text: JSON.stringify({ id: saved.id, title: saved.title, status: "stored" }),
           },
         ],
       };

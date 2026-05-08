@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { searchByEmbedding } from "../db/index.js";
+import { embed } from "../embeddings/index.js";
 
 export function registerSearchCases(server: McpServer) {
   server.tool(
@@ -12,12 +14,16 @@ export function registerSearchCases(server: McpServer) {
       limit: z.number().optional().default(5).describe("Max results to return"),
     },
     async ({ query, domain, tools, limit }) => {
-      // TODO: implement semantic search
+      const queryEmbedding = await embed(query);
+      const results = searchByEmbedding(queryEmbedding, limit, domain, tools);
+
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify({ message: "search_cases not yet implemented", query, domain, tools, limit }),
+            text: results.length > 0
+              ? JSON.stringify(results, null, 2)
+              : JSON.stringify({ message: "No matching cases found.", query }),
           },
         ],
       };
