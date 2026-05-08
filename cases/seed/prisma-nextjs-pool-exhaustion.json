@@ -1,0 +1,25 @@
+{
+  "title": "Prisma connection pool exhausted under concurrent Next.js API routes",
+  "situation": "Next.js 14 app with Prisma 5.8 and PostgreSQL 15. In development, API routes were timing out intermittently under moderate load (10–20 concurrent requests). Production was also showing occasional 'prepared statement does not exist' errors.",
+  "friction": "The error messages pointed to connection issues, but the Prisma logs showed the pool was configured correctly (connection_limit=10). Adding logging showed queries were queuing, but the pool metrics looked fine. PgBouncer was not in the stack, so pooling should have been Prisma's job.",
+  "attempts": [
+    "Increased connection_limit to 20 — no change in timeout frequency",
+    "Added explicit $disconnect() calls in API routes — made it worse (new connections on every request)",
+    "Checked for missing await on Prisma calls — all awaited correctly",
+    "Suspected N+1 queries and added includes — improved query count but not timeouts"
+  ],
+  "insight": "Next.js dev mode hot-reloads modules but does not dispose the old PrismaClient instance. Each hot reload creates a new client with a new pool, while the old pools stay open and hold connections. After several reloads, the database is saturated with idle pools from dead module instances.",
+  "solution": "Use the global singleton pattern: check `globalThis.__prisma` before instantiating, and assign the new client to `globalThis.__prisma` in development only. In production, instantiate normally (no hot reload, no problem).",
+  "code_snippet": "// lib/prisma.ts\nimport { PrismaClient } from '@prisma/client'\n\nconst globalForPrisma = globalThis as unknown as {\n  prisma: PrismaClient | undefined\n}\n\nexport const prisma =\n  globalForPrisma.prisma ??\n  new PrismaClient({\n    log: process.env.NODE_ENV === 'development' ? ['query', 'error'] : ['error'],\n  })\n\nif (process.env.NODE_ENV !== 'production') {\n  globalForPrisma.prisma = prisma\n}",
+  "watchouts": [
+    "This pattern is for Next.js specifically — other frameworks without hot reload don't need it",
+    "The 'prepared statement does not exist' error in production is a separate issue caused by PgBouncer in transaction mode — Prisma needs ?pgbouncer=true in the connection string if PgBouncer is added later",
+    "Serverless deployments (Vercel, Lambda) have a different problem: too many short-lived connections. Use @prisma/adapter-neon or connection pooling at the infrastructure level instead"
+  ],
+  "domain": "backend",
+  "tools": ["prisma@5.8", "nextjs@14", "postgres@15", "node@20"],
+  "tags": ["prisma", "connection-pool", "nextjs", "hot-reload", "postgres"],
+  "source_tool": "claude-code",
+  "contributed_by": null,
+  "visibility": "public"
+}
