@@ -94,6 +94,8 @@ export function updateEmbedding(id: string, embedding: number[]): void {
   );
 }
 
+const MIN_SIMILARITY = 0.3;
+
 export function searchByEmbedding(
   queryEmbedding: number[],
   limit: number,
@@ -116,7 +118,8 @@ export function searchByEmbedding(
       const score = cosineSimilarity(queryEmbedding, embedding);
       return { row, score };
     })
-    .filter(({ row }) => {
+    .filter(({ row, score }) => {
+      if (score < MIN_SIMILARITY) return false;
       if (!tools || tools.length === 0) return true;
       const caseTools = JSON.parse(row.tools as string) as string[];
       return tools.some((t) => caseTools.some((ct) => ct.includes(t)));
