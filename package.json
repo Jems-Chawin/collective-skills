@@ -16,6 +16,7 @@
     "prepublishOnly": "npm run build",
     "dev": "tsx src/server.ts",
     "start": "node dist/server.js",
+    "start:team": "node dist/server-team.js",
     "seed": "tsx src/db/seed.ts",
     "test": "tsx tests/basic.ts"
   },

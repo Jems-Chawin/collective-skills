@@ -64,6 +64,42 @@ Cases are stored locally at `~/.collective-skills/cases.db` (SQLite). Embeddings
 
 Override the DB path with `CS_DB_PATH` environment variable.
 
+## Team sharing
+
+A company can self-host a team server so all devs share a collective pool.
+
+**1. Deploy the team server** (on any machine accessible to your team):
+
+```bash
+CS_SERVER_TOKEN=your-shared-secret CS_DB_PATH=/data/cases.db npx collective-skills-mcp-server
+```
+
+Or run from source:
+```bash
+CS_SERVER_TOKEN=your-shared-secret node dist/server-team.js
+```
+
+**2. Configure each dev's MCP client:**
+
+```json
+{
+  "mcpServers": {
+    "collective-skills": {
+      "command": "npx",
+      "args": ["-y", "collective-skills-mcp"],
+      "env": {
+        "CS_TEAM_URL": "https://cases.yourcompany.com",
+        "CS_TEAM_TOKEN": "your-shared-secret"
+      }
+    }
+  }
+}
+```
+
+Cases with `visibility: "team"` are pushed to the team server. Searches query both local and team pools, results merged by relevance.
+
+Without `CS_TEAM_URL`, everything stays local (default behavior).
+
 ## Status
 
 Early development. Local-only for now. A hosted collective pool (so cases can be shared across developers) is planned.

@@ -2,6 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { searchByEmbedding } from "../db/index.js";
 import { embed } from "../embeddings/index.js";
+import { isTeamConfigured, searchTeam } from "../remote/index.js";
+import type { CaseResult } from "../schema.js";
 
 export function registerPullContext(server: McpServer) {
   server.tool(
@@ -13,9 +15,27 @@ export function registerPullContext(server: McpServer) {
     },
     async ({ situation, limit }) => {
       const queryEmbedding = await embed(situation);
-      const results = searchByEmbedding(queryEmbedding, limit);
+      const localResults = searchByEmbedding(queryEmbedding, limit);
 
-      if (results.length === 0) {
+      let allResults: CaseResult[] = localResults;
+
+      if (isTeamConfigured()) {
+        try {
+          const remoteResults = await searchTeam(situation, limit);
+          const seen = new Set(localResults.map((r) => r.id));
+          for (const r of remoteResults) {
+            if (!seen.has(r.id)) {
+              allResults.push(r);
+              seen.add(r.id);
+            }
+          }
+          allResults = allResults.sort((a, b) => b.similarity_score - a.similarity_score).slice(0, limit);
+        } catch (e) {
+          // Remote failure is non-fatal
+        }
+      }
+
+      if (allResults.length === 0) {
         return {
           content: [
             {
@@ -26,7 +46,7 @@ export function registerPullContext(server: McpServer) {
         };
       }
 
-      const formatted = results.map((c, i) =>
+      const formatted = allResults.map((c, i) =>
         [
           `--- Case ${i + 1}: ${c.title} (similarity: ${c.similarity_score.toFixed(2)}) ---`,
           `Situation: ${c.situation}`,
@@ -41,7 +61,7 @@ export function registerPullContext(server: McpServer) {
         content: [
           {
             type: "text" as const,
-            text: `Here are ${results.length} relevant case(s) from the collective pool:\n\n${formatted}`,
+            text: `Here are ${allResults.length} relevant case(s) from the collective pool:\n\n${formatted}`,
           },
         ],
       };

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { insertCase, updateEmbedding } from "../db/index.js";
 import { embed } from "../embeddings/index.js";
+import { isTeamConfigured, pushToTeam } from "../remote/index.js";
 
 export function registerPushCase(server: McpServer) {
   server.tool(
@@ -24,12 +25,16 @@ export function registerPushCase(server: McpServer) {
       visibility: z.enum(["private", "team", "public"]).optional().default("private"),
     },
     async (params) => {
-      const saved = insertCase({
+      const caseInput = {
         ...params,
         contributed_by: params.contributed_by ?? null,
         code_snippet: params.code_snippet ?? null,
-      });
+      };
 
+      // Always store locally
+      const saved = insertCase(caseInput);
+
+      // Generate embedding
       const textForEmbedding = [
         saved.title,
         saved.situation,
@@ -44,14 +49,25 @@ export function registerPushCase(server: McpServer) {
         const vector = await embed(textForEmbedding);
         updateEmbedding(saved.id, vector);
       } catch (e) {
-        // Embedding failure is non-fatal — case is still stored
+        // Embedding failure is non-fatal
+      }
+
+      // Push to team server if configured and visibility is team/public
+      let teamStatus = "local_only";
+      if (isTeamConfigured() && (params.visibility === "team" || params.visibility === "public")) {
+        try {
+          await pushToTeam(caseInput);
+          teamStatus = "synced_to_team";
+        } catch (e) {
+          teamStatus = `team_sync_failed: ${e instanceof Error ? e.message : "unknown error"}`;
+        }
       }
 
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify({ id: saved.id, title: saved.title, status: "stored" }),
+            text: JSON.stringify({ id: saved.id, title: saved.title, status: "stored", teamStatus }),
           },
         ],
       };
