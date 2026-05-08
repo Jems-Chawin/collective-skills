@@ -1,11 +1,13 @@
 import Database from "better-sqlite3";
 import { v4 as uuid } from "uuid";
 import path from "path";
-import { fileURLToPath } from "url";
+import fs from "fs";
+import os from "os";
 import type { Case, CaseInput, CaseResult } from "../schema.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, "../../collective-skills.db");
+const DATA_DIR = path.join(os.homedir(), ".collective-skills");
+fs.mkdirSync(DATA_DIR, { recursive: true });
+const DB_PATH = process.env.CS_DB_PATH || path.join(DATA_DIR, "cases.db");
 
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");

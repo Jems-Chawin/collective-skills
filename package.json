@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/server.ts",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "seed": "tsx src/db/seed.ts"
   },
   "keywords": ["mcp", "ai", "knowledge-base", "debugging"],
   "license": "MIT",
