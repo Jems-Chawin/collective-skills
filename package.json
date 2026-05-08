@@ -1,20 +1,29 @@
 {
   "name": "collective-skills-mcp",
   "version": "0.1.0",
-  "description": "MCP server for collective AI problem-solving knowledge",
+  "description": "MCP server that captures AI problem-solving reasoning as structured cases for reuse",
   "type": "module",
   "main": "dist/server.js",
   "bin": {
     "collective-skills-mcp": "dist/server.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "dev": "tsx src/server.ts",
     "start": "node dist/server.js",
     "seed": "tsx src/db/seed.ts"
   },
-  "keywords": ["mcp", "ai", "knowledge-base", "debugging"],
+  "keywords": ["mcp", "ai", "knowledge-base", "debugging", "reasoning", "collective"],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jems-Chawin/collective-skills.git"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.12.1",
     "better-sqlite3": "11.7.0",
