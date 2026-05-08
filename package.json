@@ -16,7 +16,8 @@
     "prepublishOnly": "npm run build",
     "dev": "tsx src/server.ts",
     "start": "node dist/server.js",
-    "seed": "tsx src/db/seed.ts"
+    "seed": "tsx src/db/seed.ts",
+    "test": "tsx tests/basic.ts"
   },
   "keywords": ["mcp", "ai", "knowledge-base", "debugging", "reasoning", "collective"],
   "license": "MIT",
